@@ -1,0 +1,40 @@
+/* styles/FAQ.css */
+
+.faq-enter {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+  }
+  
+  .faq-enter-active {
+    max-height: 100px; /* Adjust as needed */
+    opacity: 1;
+  }
+  
+  .faq-exit {
+    max-height: 100px; /* Adjust as needed */
+    opacity: 1;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in, opacity 0.3s ease-in;
+  }
+  
+  .faq-exit-active {
+    max-height: 0;
+    opacity: 0;
+  }
+  
+  button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  
+  hr {
+    border: 0;
+    height: 1px;
+    background-color: #4a5568; /* Tailwind CSS gray-600 */
+    margin-top: 1rem;
+  }
+  

@@ -5,12 +5,11 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Chato - Connect with New People | Text Chat and Video Calls",
-  description: "Chato is a fun and engaging platform for meeting new people through text chats and upcoming video calls. Start your conversation now and connect with strangers around the world.",
-  keywords: "Chato, chat app, text messaging, video calls, meet new people, online chat, social app, connect with strangers",
-  author: "Chato Team",
+  title: "Helbeku - Connect with New People | Free Text Chat and Video Calls",
+  description: "Helbeku is a free and engaging platform for meeting new people through text chats and upcoming video calls. Discover a fun way to connect with strangers around the world without the need for sign-up.",
+  keywords: "Helbeku, chat app, free text messaging, video calls, meet new people, online chat, social app, connect with strangers, Omegle alternative, chat platform",
+  author: "Helbeku Team",
   robots: "index, follow",
-  viewport: "width=device-width, initial-scale=1.0",
   language: "en-US",
 };
 
