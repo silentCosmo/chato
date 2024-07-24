@@ -8,7 +8,7 @@ const AboutSection = () => {
           Discover the Heart of Helbeku
         </h2>
         <p className="text-sm sm:text-base text-justify text-gray-600 dark:text-gray-300 mb-12">
-          Helbeku is a platform designed to connect people from all walks of life without requiring any sign-up. Whether you're looking to overcome boredom, reduce loneliness, explore new cultures, or simply have some fun, Helbeku is here for you. Our mission is to foster genuine connections and enrich your social experience while keeping our service completely free of charge.
+          Helbeku is a platform designed to connect people from all walks of life without requiring any sign-up. Whether you&apos;re looking to overcome boredom, reduce loneliness, explore new cultures, or simply have some fun, Helbeku is here for you. Our mission is to foster genuine connections and enrich your social experience while keeping our service completely free of charge.
         </p>
         <div className="space-y-6 sm:space-y-8 text-left">
           <div>
@@ -16,7 +16,7 @@ const AboutSection = () => {
               Update
             </h3>
             <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300">
-              We’re continuously working to enhance Helbeku. During scheduled maintenance periods, you might experience temporary issues. We appreciate your patience and welcome any feedback or suggestions through Discord or our feedback button.
+              We&apos;re continuously working to enhance Helbeku. During scheduled maintenance periods, you might experience temporary issues. We appreciate your patience and welcome any feedback or suggestions through Discord or our feedback button.
             </p>
           </div>
           <div>
