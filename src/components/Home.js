@@ -3,7 +3,7 @@ import Header from './Header';
 import Footer from './Footer';
 import FAQSection from './FAQ';
 import AboutSection from './About';
-import ConnectSection from './Connect';
+import ConnectSection from './ConnectSection';
 
 const HomePage = () => {
   return (

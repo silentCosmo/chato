@@ -32,6 +32,24 @@
   }
 }
 
+html, body {
+  transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+:root {
+  --background-color: #ffffff; /* Light mode background */
+  --text-color: #000000; /* Light mode text color */
+}
+
+.dark {
+  --background-color: #1a202c; /* Dark mode background */
+  --text-color: #f7fafc; /* Dark mode text color */
+}
 
 
 /* Add these to styles/globals.css */

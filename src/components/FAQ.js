@@ -16,6 +16,10 @@ const FAQ = () => {
             answer: "Helbeku is a platform designed to connect people from various backgrounds for meaningful conversations and interactions."
         },
         {
+            question: "Is Helbeku really free?",
+            answer: "Yes! Helbeku is completely free to use. Enjoy chatting and meeting new people without any costs or hidden fees."
+        },
+        {
             question: "How does Helbeku work?",
             answer: "Helbeku connects users based on shared interests, allowing them to chat or video call, fostering genuine interactions. You can start chatting without signing up."
         },
@@ -26,10 +30,6 @@ const FAQ = () => {
         {
             question: "What features does Helbeku offer?",
             answer: "Currently, Helbeku offers text chat functionality with plans to include video calling in the future. We are also working on additional features to enhance user experience."
-        },
-        {
-            question: "Is Helbeku really free?",
-            answer: "Yes! Helbeku is completely free to use. Enjoy chatting and meeting new people without any costs or hidden fees."
         },
         {
             question: "How can I provide feedback or suggestions?",

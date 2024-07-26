@@ -1,0 +1,114 @@
+'use client';
+import React, { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ref, set, onValue, serverTimestamp, update, remove } from 'firebase/database';
+import { database } from '../firebase/config'; // Adjust import as needed
+
+const ConnectPage = () => {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const interestsParam = searchParams.get('interests');
+    const userInterests = interestsParam ? interestsParam.split(',') : null;
+  
+    if (userInterests) {
+      const userId = `user_${Date.now()}`;
+      if (!sessionStorage.getItem('userId')) {
+        sessionStorage.setItem('userId', userId);
+      }
+  
+      const storedUserId = sessionStorage.getItem('userId');
+  
+      // Save the user's interests and active status to Firebase
+      set(ref(database, 'users/' + storedUserId), {
+        userId: storedUserId,
+        interests: userInterests,
+        isActive: true,
+        lastActive: serverTimestamp(),
+      })
+      .then(() => {
+        // Find matches
+        const usersRef = ref(database, 'users');
+        onValue(usersRef, (snapshot) => {
+          const data = snapshot.val();
+          const matchedUsers = [];
+          if (data) {
+            Object.values(data).forEach((user) => {
+              if (user.userId !== storedUserId && user.isActive && user.interests.some(interest => userInterests.includes(interest))) {
+                matchedUsers.push(user);
+              }
+            });
+          }
+          setMatches(matchedUsers);
+          setLoading(false);
+        }, (error) => {
+          console.error('Error fetching data: ', error);
+          setError('Error fetching data.');
+          setLoading(false);
+        });
+      })
+      .catch((error) => {
+        console.error('Error saving data to Firebase: ', error);
+        setError('Error saving data.');
+        setLoading(false);
+      });
+  
+      // Heartbeat mechanism to update user's last active timestamp
+      const heartbeatInterval = setInterval(() => {
+        update(ref(database, 'users/' + storedUserId), {
+          lastActive: serverTimestamp(),
+        });
+      }, 5000);
+  
+      const handleBeforeUnload = () => {
+        /* update(ref(database, 'users/' + storedUserId), {
+          isActive: false,
+        }); */
+        remove(ref(database, 'users/' + storedUserId));
+      };
+  
+      window.addEventListener('beforeunload', handleBeforeUnload);
+  
+      return () => {
+        clearInterval(heartbeatInterval);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        /* update(ref(database, 'users/' + storedUserId), {
+          isActive: false,
+        }); */
+        remove(ref(database, 'users/' + storedUserId));
+      };
+    } else {
+      router.push('/');
+    }
+  }, [searchParams, router]);
+  
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>{error}</p>;
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen text-center py-20 bg-gray-50 dark:bg-slate-900">
+      <h1 className="text-4xl font-extrabold text-transparent bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-500 dark:to-indigo-700 bg-clip-text mb-4">Matching with People</h1>
+      <div className="w-full max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold mb-4">Your Matches:</h2>
+        {matches.length > 0 ? (
+          <ul className="space-y-2">
+            {matches.map((match, index) => (
+              <li key={index} className="bg-blue-200 dark:bg-slate-700 text-blue-800 dark:text-gray-300 px-4 py-2 rounded-lg">
+                {match.userId} {/* Customize how you display matches */}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No matches found.</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ConnectPage;
