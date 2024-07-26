@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import UserCreation from '@/firebase/createUser';
 
@@ -7,6 +7,11 @@ const ConnectSection = () => {
   const [interests, setInterests] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    const storedInterests = JSON.parse(localStorage.getItem('userInterests')) || [];
+    setInterests(storedInterests);
+  }, []);
 
   const handleKeyPress = (event) => {
     if (event.key === 'Enter' && inputValue.trim() !== '') {
@@ -18,16 +23,17 @@ const ConnectSection = () => {
   const addInterest = (interest) => {
     if (interests.length < 5) {
       setInterests([...interests, interest]);
+      localStorage.setItem('userInterests', JSON.stringify([...interests, interest]));
     }
   };
 
   const clearInterests = () => {
     setInterests([]);
+    localStorage.removeItem('userInterests');
   };
 
   const handleConnect = () => {
-    const interestsParam = interests.join(',');
-    router.push(`/chat?interests=${interestsParam}`);
+    router.push(`/chat`);
   };
 
   return (

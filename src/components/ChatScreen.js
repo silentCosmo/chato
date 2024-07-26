@@ -8,12 +8,10 @@ const ChatScreen = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const interestsParam = searchParams.get('interests');
-    const userInterests = interestsParam ? interestsParam.split(',') : null;
+
+    const userInterests = JSON.parse(localStorage.getItem('userInterests')) || [];
 
     if (userInterests) {
       const userId = `user_${Date.now()}`;
@@ -27,9 +25,8 @@ const ChatScreen = () => {
 
       return cleanup;
     } else {
-      router.push('/');
     }
-  }, [searchParams, router]);
+  }, []);
 
   if (loading) return <p className="text-lg text-blue-600">Loading...</p>;
   if (error) return <p className="text-lg text-red-600">{error}</p>;
@@ -48,7 +45,7 @@ const ChatScreen = () => {
               <li key={index} className="bg-blue-100 dark:bg-slate-800 text-blue-800 dark:text-gray-300 px-6 py-4 rounded-lg shadow-lg">
                 <div className="font-semibold text-lg">User ID: <span className="text-blue-600">{match.userId}</span></div>
                 <div className="mt-2">
-                  <span className="font-medium">Matched Interests:</span> {match.matchedInterests.length > 0 ? match.matchedInterests.join(', ') : 'None'}
+                  <span className="font-medium">Matched Interests:</span> {match.matchedInterests?.length > 0 ? match.matchedInterests.join(', ') : 'None'}
                 </div>
               </li>
             ))}
