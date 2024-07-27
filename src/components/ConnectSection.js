@@ -33,6 +33,10 @@ const ConnectSection = () => {
   };
 
   const handleConnect = () => {
+    if (inputValue.trim() !== '') {
+      addInterest(inputValue);
+      setInputValue('');
+    }
     router.push(`/chat`);
   };
 
@@ -46,7 +50,7 @@ const ConnectSection = () => {
           <div className="flex flex-col items-center -mt-4 -mb-3">
             <div className="flex flex-wrap justify-center space-x-2">
               {interests.map((interest, index) => (
-                <span key={index} className="bg-blue-200 dark:bg-blue-800 dark:bg-opacity-40 text-blue-800 dark:text-blue-300 px-3 mb-2 py-1 rounded-lg">
+                <span key={index} className="bg-blue-200 dark:bg-blue-800 dark:bg-opacity-40 text-blue-800 dark:text-blue-300 px-3 mb-2 py-1 pb-2 rounded-lg">
                   {interest}
                 </span>
               ))}
@@ -66,6 +70,7 @@ const ConnectSection = () => {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
+          maxLength={25}
         />
         <div className="flex space-x-4 mt-4">
           <button className="bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600 transition-colors duration-300">
