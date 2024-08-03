@@ -9,7 +9,7 @@ import {
 } from "firebase/database";
 import { database } from "../firebase/config"; // Adjust import as needed
 import { createChatRoom } from "@/firebase/createChatRoom";
-import cleanUpInactiveUsers from "@/firebase/cleanupInactiveUsers";
+import cleanUpInactiveUsers from "@/firebase/cleanUpInactiveUsers";
 
 export const findMatching = (
   storedUserId,
