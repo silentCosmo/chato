@@ -69,3 +69,85 @@ body {
 .text-shadow {
   text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
+
+/* Animations */
+
+/* Define keyframes for the 3D animation */
+@keyframes rotate3d {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+/* Apply the animation */
+.animate-3d {
+  animation: rotate3d 3s linear infinite;
+  transform-style: preserve-3d;
+}
+
+/* Ensure the text is positioned to allow 3D effects */
+.animate-3d-container {
+  perspective: 1000px;
+}
+
+
+/* Keyframes for scaling up and down */
+@keyframes scaleUpDown {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Keyframes for shaking effect */
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-5px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Combine both animations */
+.animate-cute {
+  display: inline-block; /* To ensure the transform affects the element */
+  animation: scaleUpDown 1.5s ease-in-out infinite, shake 0.5s ease-in-out infinite;
+}
+
+
+/* Keyframes for zooming in and out */
+@keyframes zoomInOut {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2); /* Adjust scale for zoom effect */
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Apply the zoom animation */
+.animate-zoom:hover {
+  display: inline-block; /* Ensures the transform affects the element */
+  animation: zoomInOut 2s ease-in-out infinite; /* Adjust duration as needed */
+}

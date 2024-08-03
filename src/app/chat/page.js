@@ -1,12 +1,12 @@
-import ChatScreen from '@/components/ChatScreen'
 import Header from '@/components/Header'
 import React from 'react'
+import MatchFinder from '@/components/MatchFinder'
 
 function page() {
   return (
     <div>{/* 
         <Header/> */}
-        <ChatScreen/>
+        <MatchFinder/>
     </div>
   )
 }
