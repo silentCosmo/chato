@@ -1,18 +1,12 @@
 'use client'; // Add this line to mark the component as a client component
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import ThemeSwitcher from './ThemeSwitcher';
-import { fetchActiveUsersCount } from '../firebase/activeUsers';
+import { usePresenceCount } from '@/context/PresenceContext';
 import { FaUsers } from 'react-icons/fa'; // Import an icon from react-icons for the active users
 
 const Header = () => {
-  const [activeUserCount, setActiveUserCount] = useState(0);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      fetchActiveUsersCount(setActiveUserCount);
-    }
-  }, []);
+  const activeUserCount = usePresenceCount();
 
   return (
     <header className="bg-gray-50 fixed top-0 z-50 w-full dark:bg-slate-900 shadow-md py-4 px-6 flex justify-between items-center">

@@ -1,16 +1,17 @@
-import {
-  ref,
-  set,
-  onValue,
-  serverTimestamp,
-  update,
-  remove,
-  get,
-} from "firebase/database";
+import { ref, onValue, onDisconnect } from "firebase/database";
 import { database } from "../firebase/config"; // Adjust import as needed
-import { createChatRoom } from "@/firebase/createChatRoom";
-import cleanUpInactiveUsers from "@/firebase/cleanUpInactiveUsers";
 
+/**
+ * Initiates matchmaking by calling the server-side API and listening to the user's private match node.
+ * 
+ * @param {string} storedUserId - Unique ID of the searching user
+ * @param {Array<string>} userInterests - Array of selected interests
+ * @param {function} setMatches - Set state for matching indicators (optional fallback)
+ * @param {function} setLoading - Hook to toggle loader spinner
+ * @param {function} setError - Hook to set error message
+ * @param {function} setChatRoomId - Hook to assign successful chat room ID
+ * @returns {function} Cleanup function to run when the finder unmounts
+ */
 export const findMatching = (
   storedUserId,
   userInterests,
@@ -19,328 +20,65 @@ export const findMatching = (
   setError,
   setChatRoomId
 ) => {
-  const userRef = ref(database, "users/" + storedUserId);
-  const usersRef = ref(database, "users");
-  let unsubscribe = null;
-  let chatRoomCreated = false; // Track if the chat room has been created
+  const matchRef = ref(database, `matches/${storedUserId}`);
+  const queueRef = ref(database, `queue/${storedUserId}`);
+  let unsubscribeMatch = null;
 
-  // Clean up inactive users
-  cleanUpInactiveUsers()
-    .then(() => {
-      // Save the user's interests and active status to Firebase
-      update(userRef, {
-        userId: storedUserId,
-        interests: userInterests,
-        isActive: true,
-        isBusy: false,
-        matchedUserId: null,
-        lastActive: serverTimestamp(),
-      })
-        .then(() => {
-          // Find matches
-          unsubscribe = onValue(
-            usersRef,
-            (snapshot) => {
-              const data = snapshot.val();
-              const matchedUsers = [];
+  // Enforce server-side cleanup if the client drops connection abruptly
+  onDisconnect(queueRef).remove().catch((err) => console.error("onDisconnect queue error:", err));
+  onDisconnect(matchRef).remove().catch((err) => console.error("onDisconnect match error:", err));
 
-              if (data) {
-                Object.values(data).forEach((user) => {
-                  const currentTime = new Date().getTime();
-                  const lastActiveTime = user.lastActive? new Date(user.lastActive).getTime(): 0;
-                  const isActiveRecently =
-                    currentTime - lastActiveTime <= 10000;
-
-                  if (
-                    user.userId !== storedUserId &&
-                    user.isActive && user.isActive &&
-                    (!user.isBusy || user.matchedUserId === storedUserId)
-                  ) {
-                    const matchedInterests = user.interests?.filter(
-                      (interest) => userInterests.includes(interest)
-                    );
-                    if (matchedInterests?.length > 0) {
-                      matchedUsers.push({
-                        ...user,
-                        matchedInterests,
-                        matchedPoints: matchedInterests.length,
-                      });
-                    }
-                  }
-                });
-              }
-
-              setMatches(matchedUsers);
-              setLoading(false);
-
-              if (matchedUsers.length > 0 && !chatRoomCreated) {
-                chatRoomCreated = true; // Prevent further room creation
-                console.log("MatchDone");
-                console.log("got", matchedUsers[0].userId);
-
-                // Find the maximum number of shared interests
-                const maxSharedInterests = Math.max(
-                  ...matchedUsers.map((user) => user.matchedPoints)
-                );
-
-                // Filter users with the maximum shared interests
-                const bestMatches = matchedUsers.filter(
-                  (user) => user.matchedPoints === maxSharedInterests
-                );
-
-                // Randomly select one user from the best matches
-                const selectedMatch =
-                  bestMatches[Math.floor(Math.random() * bestMatches.length)];
-
-                const sharedInterests = selectedMatch.matchedInterests;
-
-                // Create chat room and set chat room ID
-                createChatRoom(
-                  storedUserId,
-                  selectedMatch.userId,
-                  sharedInterests
-                )
-                  .then((chatRoomId) => setChatRoomId(chatRoomId))
-                  .catch((error) => setError("Error creating chat room."));
-
-                // Stop listening for further matches
-                if (unsubscribe) {
-                  unsubscribe();
-                }
-              }
-            },
-            (error) => {
-              console.error("Error fetching data: ", error);
-              setError("Error fetching data.");
-              setLoading(false);
-            }
-          );
-        })
-        .catch((error) => {
-          console.error("Error saving data to Firebase: ", error);
-          setError("Error saving data.");
-          setLoading(false);
-        });
-    })
-    .catch((error) => {
-      console.error("Error cleaning up inactive users: ", error);
-      setError("Error cleaning up inactive users.");
-      setLoading(false);
-    });
-
-  // Clean up function to unsubscribe and remove user data on component unmount
-  return () => {
-    if (unsubscribe) {
-      unsubscribe();
+  // 1. Subscribe to the private match notification node
+  unsubscribeMatch = onValue(matchRef, (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.chatRoomId) {
+      console.log("Matched successfully server-side! Room ID:", data.chatRoomId);
+      setChatRoomId(data.chatRoomId);
     }
-    remove(userRef);
+  });
+
+  // 2. Submit matchmaking request to serverless Route Handler
+  fetch('/api/match/join', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: storedUserId,
+      interests: userInterests
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      if (data.status === 'matched') {
+        console.log("Immediate match success! Room ID:", data.chatRoomId);
+        setChatRoomId(data.chatRoomId);
+      } else {
+        console.log("Successfully entered match queue. Waiting...");
+        setLoading(true); // Keep loading status active
+      }
+    } else {
+      console.error("Matchmaker join rejected:", data.message);
+      setError(data.message || "Matchmaking request failed");
+      setLoading(false);
+    }
+  })
+  .catch(err => {
+    console.error("Network error requesting match:", err);
+    setError("Network connection issue. Matchmaking could not be requested.");
+    setLoading(false);
+  });
+
+  // Return cleanup hook to execute when leaving MatchFinder component
+  return () => {
+    if (unsubscribeMatch) {
+      unsubscribeMatch();
+    }
+    
+    // Notify server to remove us from matching queue
+    fetch('/api/match/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: storedUserId })
+    }).catch(err => console.error("Failed to notify leave queue:", err));
   };
 };
-
-/* import { ref, set, onValue, serverTimestamp, update, remove } from 'firebase/database';
-import { database } from '../firebase/config'; // Adjust import as needed
-import { createChatRoom } from '@/firebase/createChatRoom';
-
-const INACTIVE_THRESHOLD = 30000; // 30 seconds
-
-export const findMatching = (storedUserId, userInterests, setMatches, setLoading, setError, setChatRoomId) => {
-  const userRef = ref(database, 'users/' + storedUserId);
-  const usersRef = ref(database, 'users');
-  let unsubscribe = null;
-  let chatRoomCreated = false; // Track if the chat room has been created
-  let activityInterval = null;
-
-  
-  update(userRef, {
-    userId: storedUserId,
-    interests: userInterests,
-    isActive: true,
-    isBusy: false,
-    matchedUserId: null,
-    lastActive: serverTimestamp(),
-  })
-    .then(() => {
-      // Update the lastActive timestamp periodically
-      activityInterval = setInterval(() => {
-        update(userRef, { lastActive: serverTimestamp() });
-      }, 10000); // Update every 10 seconds (adjust as needed)
-
-      // Find matches
-      unsubscribe = onValue(usersRef, (snapshot) => {
-        const data = snapshot.val();
-        const matchedUsers = [];
-
-        if (data) {
-          Object.values(data).forEach((user) => {
-            const currentTime = new Date().getTime();
-            const lastActiveTime = user.lastActive ? new Date(user.lastActive).getTime() : 0;
-            const isActiveRecently = currentTime - lastActiveTime <= INACTIVE_THRESHOLD;
-
-            if (
-              user.userId !== storedUserId &&
-              user.isActive &&
-              isActiveRecently &&
-              (!user.isBusy || user.matchedUserId === storedUserId)
-            ) {
-              const matchedInterests = user.interests?.filter(interest => userInterests.includes(interest));
-              if (matchedInterests?.length > 0) {
-                matchedUsers.push({
-                  ...user,
-                  matchedInterests,
-                  matchedPoints: matchedInterests.length,
-                });
-              }
-            }
-          });
-        }
-
-        setMatches(matchedUsers);
-        setLoading(false);
-
-        if (matchedUsers.length > 0 && !chatRoomCreated) {
-          chatRoomCreated = true; // Prevent further room creation
-          console.log('MatchDone');
-          console.log('got', matchedUsers[0].userId);
-
-          // Find the maximum number of shared interests
-          const maxSharedInterests = Math.max(...matchedUsers.map(user => user.matchedPoints));
-          
-          // Filter users with the maximum shared interests
-          const bestMatches = matchedUsers.filter(user => user.matchedPoints === maxSharedInterests);
-          
-          // Randomly select one user from the best matches
-          const selectedMatch = bestMatches[Math.floor(Math.random() * bestMatches.length)];
-
-          const sharedInterests = selectedMatch.matchedInterests;
-
-          // Create chat room and set chat room ID
-          createChatRoom(storedUserId, selectedMatch.userId, sharedInterests)
-            .then((chatRoomId) => setChatRoomId(chatRoomId))
-            .catch((error) => setError('Error creating chat room.'));
-
-          // Stop listening for further matches
-          if (unsubscribe) {
-            unsubscribe();
-          }
-
-          // Clear the activity interval
-          clearInterval(activityInterval);
-        }
-      }, (error) => {
-        console.error('Error fetching data: ', error);
-        setError('Error fetching data.');
-        setLoading(false);
-      });
-    })
-    .catch((error) => {
-      console.error('Error saving data to Firebase: ', error);
-      setError('Error saving data.');
-      setLoading(false);
-    });
-
-  // Clean up function to unsubscribe and remove user data on component unmount
-  return () => {
-    if (unsubscribe) {
-      unsubscribe();
-    }
-    if (activityInterval) {
-      clearInterval(activityInterval);
-    }
-    remove(userRef);
-  };
-}; */
-
-/* import { ref, set, onValue, serverTimestamp, update, remove } from 'firebase/database';
-import { database } from '../firebase/config'; // Adjust import as needed
-import { createChatRoom } from '@/firebase/createChatRoom';
-
-export const findMatching = (storedUserId, userInterests, setMatches, setLoading, setError, setChatRoomId) => {
-  const userRef = ref(database, 'users/' + storedUserId);
-  const usersRef = ref(database, 'users');
-  let unsubscribe = null;
-  let chatRoomCreated = false; // Track if the chat room has been created
-
-  // Save the user's interests and active status to Firebase
-  update(userRef, {
-    userId: storedUserId,
-    interests: userInterests,
-    isActive: true,
-    isBusy: false,
-    matchedUserId: null,
-    lastActive: serverTimestamp(),
-  })
-    .then(() => {
-      // Find matches
-      unsubscribe = onValue(usersRef, (snapshot) => {
-        const data = snapshot.val();
-        const matchedUsers = [];
-
-        if (data) {
-          Object.values(data).forEach((user) => {
-            if (
-              user.userId !== storedUserId &&
-              user.isActive &&
-              (!user.isBusy || user.matchedUserId === storedUserId)
-            ) {
-              const matchedInterests = user.interests?.filter(interest => userInterests.includes(interest));
-              if (matchedInterests?.length > 0) {
-                matchedUsers.push({
-                  ...user,
-                  matchedInterests,
-                  matchedPoints: matchedInterests.length,
-                });
-              }
-            }
-          });
-        }
-
-        setMatches(matchedUsers);
-        setLoading(false);
-
-        if (matchedUsers.length > 0 && !chatRoomCreated) {
-          chatRoomCreated = true; // Prevent further room creation
-          console.log('MatchDone');
-          console.log('got', matchedUsers[0].userId);
-
-          // Find the maximum number of shared interests
-          const maxSharedInterests = Math.max(...matchedUsers.map(user => user.matchedPoints));
-          
-          // Filter users with the maximum shared interests
-          const bestMatches = matchedUsers.filter(user => user.matchedPoints === maxSharedInterests);
-          
-          // Randomly select one user from the best matches
-          const selectedMatch = bestMatches[Math.floor(Math.random() * bestMatches.length)];
-
-          const sharedInterests = selectedMatch.matchedInterests;
-          
-
-          // Create chat room and set chat room ID
-          createChatRoom(storedUserId, selectedMatch.userId, sharedInterests)
-            .then((chatRoomId) => setChatRoomId(chatRoomId))
-            .catch((error) => setError('Error creating chat room.'));
-
-          // Stop listening for further matches
-          if (unsubscribe) {
-            unsubscribe();
-          }
-        }
-      }, (error) => {
-        console.error('Error fetching data: ', error);
-        setError('Error fetching data.');
-        setLoading(false);
-      });
-    })
-    .catch((error) => {
-      console.error('Error saving data to Firebase: ', error);
-      setError('Error saving data.');
-      setLoading(false);
-    });
-
-  // Clean up function to unsubscribe and remove user data on component unmount
-  return () => {
-    if (unsubscribe) {
-      unsubscribe();
-    }
-    remove(userRef);
-  };
-}; */

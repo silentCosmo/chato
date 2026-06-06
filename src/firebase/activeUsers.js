@@ -2,12 +2,12 @@ import { ref, onValue } from 'firebase/database';
 import { database } from './config';
 
 export const fetchActiveUsersCount = (setActiveUserCount) => {
-  const usersRef = ref(database, 'users');
+  const usersRef = ref(database, 'presence');
   
-  onValue(usersRef, (snapshot) => {
+  return onValue(usersRef, (snapshot) => {
     const data = snapshot.val();
     const activeCount = data
-      ? Object.values(data).filter(user => user.isActive).length
+      ? Object.keys(data).length
       : 0;
     setActiveUserCount(activeCount);
   }, (error) => {

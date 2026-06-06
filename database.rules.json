@@ -1,0 +1,37 @@
+{
+  "rules": {
+    // Presence node: clients can read overall online users to count children, 
+    // and write to their own session presence node to establish connection
+    "presence": {
+      ".read": "true",
+      "$userId": {
+        ".write": "!newData.exists() || (newData.child('userId').val() === $userId || $userId.slice(0, 5) === 'user_')"
+      }
+    },
+    
+    // Matchmaking queue: strict server-side access only. Direct client read/write is completely blocked.
+    "queue": {
+      ".read": "false",
+      ".write": "false",
+      ".indexOn": ["joinedAt"]
+    },
+    
+    // Match results: clients can read their own match node to learn when a server match is found. 
+    // Clients cannot write to this path.
+    "matches": {
+      "$userId": {
+        ".read": "true",
+        ".write": "false"
+      }
+    },
+    
+    // Chat Rooms: clients can join, read and write messages in active chat rooms.
+    "chatRooms": {
+      "$chatRoomId": {
+        ".read": "true",
+        ".write": "true",
+        ".indexOn": ["info/lastActive"]
+      }
+    }
+  }
+}

@@ -1,12 +1,9 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
 import { getDatabase } from "firebase/database";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCDn_Vff53ruNFhYZlhVqHS2v7GeCIriEw",
   authDomain: "helbeku.firebaseapp.com",
@@ -17,6 +14,11 @@ const firebaseConfig = {
   measurementId: "G-Z9XVX6BZL2"
 };
 
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const auth = getAuth(app);
+
 if (typeof window !== 'undefined') {
   isSupported().then((supported) => {
     if (supported) {
@@ -25,9 +27,4 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-//const analytics = getAnalytics(app);
-const database = getDatabase(app);
-
-export {database};
+export { database, auth };

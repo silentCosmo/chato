@@ -1,6 +1,5 @@
 import { ref, set, get, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { database } from '../firebase/config'; // Adjust import as needed
-import cleanUpInactiveChatRooms from './cleanUpInactiveChatRooms';
 
 export const createChatRoom = async (user1Id, user2Id, sharedInterests) => {
   // Sort user IDs to create a unique chat room ID
@@ -38,7 +37,6 @@ export const createChatRoom = async (user1Id, user2Id, sharedInterests) => {
     await update(chatRoomRef, { matchedInterests: sharedInterests });
     await update(ref(database, `users/${user1Id}`), { isBusy: true, matchedUserId: user2Id, chatRoomId });
     await update(ref(database, `users/${user2Id}`), { isBusy: true, matchedUserId: user1Id, chatRoomId });
-    //await cleanUpInactiveChatRooms();
 
     return chatRoomId;
 

@@ -1,7 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import UserCreation from '@/firebase/createUser';
 
 const ConnectSection = () => {
   const [interests, setInterests] = useState([]);
@@ -42,7 +41,6 @@ const ConnectSection = () => {
 
   return (
     <section className="flex md:text-base text-sm flex-col items-center justify-center min-h-screen text-center py-20 md:px-0 px-2 bg-gray-50 dark:bg-slate-900">
-      <UserCreation/>
       <h1 className="md:text-5xl text-3xl font-extrabold text-transparent bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-500 dark:to-indigo-700 bg-clip-text mb-4">Connect with People</h1>
       <p className="md:text-xl text-sm text-gray-700 dark:text-gray-400 mb-6">Type your interests and select connection.</p>
       <div className="flex flex-col items-center space-y-4">

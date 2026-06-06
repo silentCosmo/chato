@@ -14,10 +14,16 @@ export const metadata = {
 };
 
 
+import { PresenceProvider } from "@/context/PresenceContext";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <PresenceProvider>
+          {children}
+        </PresenceProvider>
+      </body>
       <GoogleAnalytics gaId="G-E2BWEYV9P3" />
     </html>
   );

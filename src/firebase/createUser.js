@@ -1,35 +1,22 @@
 'use client';
 import React, { useEffect } from 'react';
-import { createUser, startHeartbeat } from '../firebase/userManagement'; // Import user management functions
+import { usePresence } from '@/context/PresenceContext';
+import { startPresence } from './presence';
 
 const UserCreation = () => {
-    // Create a unique user ID and store it in sessionStorage
-const createOrGetUserId = () => {
-    let userId = sessionStorage.getItem('userId');
-    if (!userId) {
-      userId = `user_${Date.now()}`;
-      sessionStorage.setItem('userId', userId);
-    }
-    return userId;
-  };
+  const { userId, authLoaded } = usePresence();
   
   useEffect(() => {
-    const userId = createOrGetUserId(); // Function to create or retrieve user ID
-    console.log('User ID from sessionStorage:', userId);
+    if (!authLoaded || !userId) return;
 
-    createUser(userId)
-      .then(() => {
-        console.log('User data saved to Firebase:', userId);
-        return startHeartbeat(userId); // Start heartbeat
-      })
-      .catch((error) => {
-        console.error('Error initializing user:', error);
-      });
+    console.log('Initializing presence session for UID:', userId);
+    const stopPresence = startPresence(userId);
 
     return () => {
-      // Cleanup logic if needed
+      console.log('Cleaning up presence session for UID:', userId);
+      stopPresence();
     };
-  }, []);
+  }, [userId, authLoaded]);
 
   return null; // This component does not render anything visible
 };

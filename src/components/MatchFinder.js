@@ -1,7 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { findMatching, findRandom } from './FindMatching';
+import { findMatching } from './FindMatching';
+import { usePresence } from '@/context/PresenceContext';
 import Header from './Header';
 import ChatRoom from './ChatRoom';
 
@@ -13,6 +14,7 @@ const MatchFinder = () => {
   const [reTry, setRetry] = useState(true);
   const [chatRoomId, setChatRoomId] = useState(null);
   const router = useRouter();
+  const { userId, authLoaded } = usePresence();
 
   const [userInterests, setUserInterests] = useState(() => {
     if (typeof window !== "undefined") {
@@ -33,18 +35,10 @@ const MatchFinder = () => {
 
 
   useEffect(() => {
-    
-    //const userInterests = JSON.parse(localStorage.getItem('userInterests')) || [];
+    if (!authLoaded || !userId) return;
 
     if (userInterests.length > 0) {
-      const userId = `user_${Date.now()}`;
-      if (!sessionStorage.getItem('userId')) {
-        sessionStorage.setItem('userId', userId);
-      }
-
-      const storedUserId = sessionStorage.getItem('userId');
-
-      const cleanup = findMatching(storedUserId, userInterests, setMatches, setLoading, setError, setChatRoomId);
+      const cleanup = findMatching(userId, userInterests, setMatches, setLoading, setError, setChatRoomId);
 
       return () => {
         cleanup && cleanup();
@@ -52,7 +46,7 @@ const MatchFinder = () => {
     } else {
       setLoading(false);
     }
-  }, [reTry]);
+  }, [reTry, userInterests, userId, authLoaded]);
 
   useEffect(() => {
     if (chatRoomId) {
@@ -75,7 +69,7 @@ const MatchFinder = () => {
 
   if (chatRoomId) {
     // Render the chat room if a chatRoomId is present
-    return <ChatRoom chatRoomId={chatRoomId} userId={sessionStorage.getItem('userId')} onSkip={handleSkip} />;
+    return <ChatRoom chatRoomId={chatRoomId} userId={userId} onSkip={handleSkip} />;
   }
 
   return (
