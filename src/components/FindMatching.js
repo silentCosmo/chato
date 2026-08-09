@@ -18,7 +18,8 @@ export const findMatching = (
   setMatches,
   setLoading,
   setError,
-  setChatRoomId
+  setChatRoomId,
+  matchType = 'text'
 ) => {
   const matchRef = ref(database, `matches/${storedUserId}`);
   const queueRef = ref(database, `queue/${storedUserId}`);
@@ -43,7 +44,8 @@ export const findMatching = (
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       userId: storedUserId,
-      interests: userInterests
+      interests: userInterests,
+      matchType
     })
   })
   .then(res => res.json())

@@ -11,7 +11,8 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { userId, interests } = body;
+    const { userId, interests, matchType } = body;
+    const sanitizedMatchType = ['text', 'audio', 'video'].includes(matchType) ? matchType : 'text';
 
     // 1. Basic validation
     if (!userId || !Array.isArray(interests) || interests.length === 0) {
@@ -47,19 +48,24 @@ export async function POST(request) {
         currentQueue = {};
         currentQueue[userId] = {
           interests: sanitizedInterests,
+          matchType: sanitizedMatchType,
           joinedAt: Date.now()
         };
         matchResult = { status: 'pending' };
         return currentQueue;
       }
 
-      // Search for a match in the queue
+      // Search for a match in the queue with compatible connection mode
       let bestCandidateId = null;
       let bestSharedInterests = [];
       let maxSharedCount = 0;
 
       for (const [candidateId, candidate] of Object.entries(currentQueue)) {
         if (candidateId === userId) continue;
+
+        // Strict mode match constraint (Text matches Text, Audio matches Audio, Video matches Video)
+        const candidateMode = candidate.matchType || 'text';
+        if (candidateMode !== sanitizedMatchType) continue;
 
         // Calculate overlap of interests
         const shared = candidate.interests.filter(i => sanitizedInterests.includes(i));
@@ -70,12 +76,15 @@ export async function POST(request) {
         }
       }
 
-      // If no interest match, see if we can match randomly (FIFO)
+      // If no interest match, see if we can match randomly (FIFO) with same mode
       if (!bestCandidateId) {
         const hasRandomInterest = sanitizedInterests.includes('random');
         
         for (const [candidateId, candidate] of Object.entries(currentQueue)) {
           if (candidateId === userId) continue;
+
+          const candidateMode = candidate.matchType || 'text';
+          if (candidateMode !== sanitizedMatchType) continue;
 
           const candidateHasRandom = candidate.interests.includes('random');
           if (hasRandomInterest || candidateHasRandom) {
@@ -101,6 +110,7 @@ export async function POST(request) {
         // No match found, add user to queue
         currentQueue[userId] = {
           interests: sanitizedInterests,
+          matchType: sanitizedMatchType,
           joinedAt: Date.now()
         };
         matchResult = { status: 'pending' };
@@ -123,20 +133,21 @@ export async function POST(request) {
           [matchResult.matchedUserId]: true
         },
         matchedInterests: matchResult.sharedInterests,
+        matchType: sanitizedMatchType,
         createdAt: admin.database.ServerValue.TIMESTAMP,
         lastActive: admin.database.ServerValue.TIMESTAMP
       });
 
       // Write matches paths to notify both clients
-      const matchDataA = { chatRoomId, matchedUserId: matchResult.matchedUserId };
-      const matchDataB = { chatRoomId, matchedUserId: userId };
+      const matchDataA = { chatRoomId, matchedUserId: matchResult.matchedUserId, matchType: sanitizedMatchType };
+      const matchDataB = { chatRoomId, matchedUserId: userId, matchType: sanitizedMatchType };
 
       await Promise.all([
         adminDb.ref(`matches/${userId}`).set(matchDataA),
         adminDb.ref(`matches/${matchResult.matchedUserId}`).set(matchDataB)
       ]);
 
-      return NextResponse.json({ success: true, status: 'matched', chatRoomId, matchedUserId: matchResult.matchedUserId });
+      return NextResponse.json({ success: true, status: 'matched', chatRoomId, matchedUserId: matchResult.matchedUserId, matchType: sanitizedMatchType });
     }
 
     // If transaction succeeded and we are pending, return status

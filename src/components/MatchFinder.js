@@ -34,11 +34,18 @@ const MatchFinder = () => {
 
 
 
+  const [matchType, setMatchType] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem('matchType') || 'text';
+    }
+    return 'text';
+  });
+
   useEffect(() => {
     if (!authLoaded || !userId) return;
 
     if (userInterests.length > 0) {
-      const cleanup = findMatching(userId, userInterests, setMatches, setLoading, setError, setChatRoomId);
+      const cleanup = findMatching(userId, userInterests, setMatches, setLoading, setError, setChatRoomId, matchType);
 
       return () => {
         cleanup && cleanup();
@@ -46,7 +53,7 @@ const MatchFinder = () => {
     } else {
       setLoading(false);
     }
-  }, [reTry, userInterests, userId, authLoaded]);
+  }, [reTry, userInterests, userId, authLoaded, matchType]);
 
   useEffect(() => {
     if (chatRoomId) {
@@ -63,13 +70,14 @@ const MatchFinder = () => {
   }, [loading, matches, reTry]);
 
   const handleSkip = () => {
-    setChatRoomId(null)
-    setUserInterests(JSON.parse(localStorage.getItem('userInterests')) || ['random'])
+    setChatRoomId(null);
+    setUserInterests(JSON.parse(localStorage.getItem('userInterests')) || ['random']);
+    setMatchType(localStorage.getItem('matchType') || 'text');
   };
 
   if (chatRoomId) {
     // Render the chat room if a chatRoomId is present
-    return <ChatRoom chatRoomId={chatRoomId} userId={userId} onSkip={handleSkip} />;
+    return <ChatRoom chatRoomId={chatRoomId} userId={userId} initialMatchType={matchType} onSkip={handleSkip} />;
   }
 
   return (

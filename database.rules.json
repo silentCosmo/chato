@@ -25,13 +25,26 @@
       }
     },
     
-    // Chat Rooms: clients can join, read and write messages in active chat rooms.
+    // Chat Rooms: path-specific access restricted strictly to verified room participants
     "chatRooms": {
       "$chatRoomId": {
-        ".read": "true",
-        ".write": "true",
-        ".indexOn": ["info/lastActive"]
+        ".read": "auth != null && root.child('chatRooms/' + $chatRoomId + '/participants/' + auth.uid).exists()",
+        ".indexOn": ["info/lastActive"],
+        "messages": {
+          ".write": "auth != null && root.child('chatRooms/' + $chatRoomId + '/participants/' + auth.uid).exists()"
+        },
+        "status": {
+          ".write": "auth != null && root.child('chatRooms/' + $chatRoomId + '/participants/' + auth.uid).exists()"
+        },
+        "lastActive": {
+          ".write": "auth != null && root.child('chatRooms/' + $chatRoomId + '/participants/' + auth.uid).exists()"
+        },
+        "call": {
+          ".read": "auth != null && root.child('chatRooms/' + $chatRoomId + '/participants/' + auth.uid).exists()",
+          ".write": "auth != null && root.child('chatRooms/' + $chatRoomId + '/participants/' + auth.uid).exists()"
+        }
       }
     }
   }
 }
+

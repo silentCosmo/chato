@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation';
 const ConnectSection = () => {
   const [interests, setInterests] = useState([]);
   const [inputValue, setInputValue] = useState('');
+  const [matchType, setMatchType] = useState('text');
   const router = useRouter();
 
   useEffect(() => {
     const storedInterests = JSON.parse(localStorage.getItem('userInterests')) || [];
     setInterests(storedInterests);
+    const storedType = localStorage.getItem('matchType') || 'text';
+    setMatchType(storedType);
   }, []);
 
   const handleKeyPress = (event) => {
@@ -31,18 +34,24 @@ const ConnectSection = () => {
     localStorage.removeItem('userInterests');
   };
 
+  const handleSelectMode = (mode) => {
+    setMatchType(mode);
+    localStorage.setItem('matchType', mode);
+  };
+
   const handleConnect = () => {
     if (inputValue.trim() !== '') {
       addInterest(inputValue);
       setInputValue('');
     }
+    localStorage.setItem('matchType', matchType);
     router.push(`/chat`);
   };
 
   return (
     <section className="flex md:text-base text-sm flex-col items-center justify-center min-h-screen text-center py-20 md:px-0 px-2 bg-gray-50 dark:bg-slate-900">
       <h1 className="md:text-5xl text-3xl font-extrabold text-transparent bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-blue-500 dark:to-indigo-700 bg-clip-text mb-4">Connect with People</h1>
-      <p className="md:text-xl text-sm text-gray-700 dark:text-gray-400 mb-6">Type your interests and select connection.</p>
+      <p className="md:text-xl text-sm text-gray-700 dark:text-gray-400 mb-6">Type your interests and select connection mode.</p>
       <div className="flex flex-col items-center space-y-4">
         {interests.length > 0 && (
           <div className="flex flex-col items-center -mt-4 -mb-3">
@@ -70,14 +79,40 @@ const ConnectSection = () => {
           onKeyPress={handleKeyPress}
           maxLength={25}
         />
-        <div className="flex space-x-4 mt-4">
-          <button className="bg-blue-500 text-white px-6 py-3 rounded-md hover:bg-blue-600 transition-colors duration-300">
-            Text
+        <div className="flex space-x-3 mt-4">
+          <button
+            onClick={() => handleSelectMode('text')}
+            className={`px-5 py-2.5 rounded-md transition-all duration-300 font-medium ${
+              matchType === 'text'
+                ? 'bg-blue-600 text-white shadow-lg scale-105'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+            }`}
+          >
+            💬 Text
           </button>
-          <button className="bg-slate-500 opacity-50 text-white px-6 py-3 rounded-md cursor-not-allowed">Video (Coming Soon)</button>
+          <button
+            onClick={() => handleSelectMode('audio')}
+            className={`px-5 py-2.5 rounded-md transition-all duration-300 font-medium ${
+              matchType === 'audio'
+                ? 'bg-blue-600 text-white shadow-lg scale-105'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+            }`}
+          >
+            📞 Audio
+          </button>
+          <button
+            onClick={() => handleSelectMode('video')}
+            className={`px-5 py-2.5 rounded-md transition-all duration-300 font-medium ${
+              matchType === 'video'
+                ? 'bg-blue-600 text-white shadow-lg scale-105'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+            }`}
+          >
+            📹 Video
+          </button>
         </div>
         <button
-          className="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition-colors duration-300 mt-4"
+          className="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 transition-colors duration-300 mt-4 font-semibold shadow-md"
           onClick={handleConnect}
         >
           Connect
