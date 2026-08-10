@@ -397,7 +397,7 @@ const ChatRoom = ({ chatRoomId, userId, initialMatchType, onSkip }) => {
           dark:text-blue-400
         "
       >
-        Start a new chat when you're ready
+        Start a new chat when you&apos;re ready
       </p>
     </div>
   </div>
