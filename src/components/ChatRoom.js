@@ -15,26 +15,15 @@ import { useWebRTCCall } from "@/hooks/useWebRTCCall";
 import IncomingCallModal from "./chat/IncomingCallModal";
 import ActiveCallView from "./chat/ActiveCallView";
 
-// Custom hook to handle unload confirmation and cleanup
-const useUnloadConfirmation = (shouldConfirm, callback) => {
-  /*
-  useEffect(() => {
-    const handleBeforeUnload = (event) => {
-      if (shouldConfirm) {
-        event.preventDefault();
-        event.returnValue = "";
-        callback();
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [shouldConfirm, callback]);
-  */
-};
+import {
+  PhoneIcon,
+  VideoCameraIcon,
+  PaperAirplaneIcon,
+  ArrowRightIcon,
+  ArrowPathIcon,
+  ChevronDownIcon,
+  UserIcon,
+} from "@heroicons/react/24/solid";
 
 const ChatRoom = ({ chatRoomId, userId, initialMatchType, onSkip }) => {
   const [messages, setMessages] = useState([]);
@@ -47,77 +36,40 @@ const ChatRoom = ({ chatRoomId, userId, initialMatchType, onSkip }) => {
 
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-  const textareaRef = useRef(null);
-
   const emojiRegex = /[\p{Emoji}]/u;
 
-  // ============================================================
-  // AUTHORITATIVE ROOM MATCH TYPE
-  // ============================================================
-
+  // Subscribe to room matchType from Firebase (authoritative source)
   useEffect(() => {
     if (!chatRoomId) return;
-
-    const matchTypeRef = ref(
-      database,
-      `chatRooms/${chatRoomId}/matchType`
-    );
-
-    const unsubscribeMatchType = onValue(
-      matchTypeRef,
-      (snapshot) => {
-        const type = snapshot.val();
-
-        if (type) {
-          setRoomMatchType(type);
-        } else if (initialMatchType) {
-          setRoomMatchType(initialMatchType);
-        } else {
-          setRoomMatchType("text");
-        }
+    const matchTypeRef = ref(database, `chatRooms/${chatRoomId}/matchType`);
+    const unsubscribeMatchType = onValue(matchTypeRef, (snapshot) => {
+      const type = snapshot.val();
+      if (type) {
+        setRoomMatchType(type);
+      } else if (initialMatchType) {
+        setRoomMatchType(initialMatchType);
+      } else {
+        setRoomMatchType('text');
       }
-    );
-
+    });
     return () => unsubscribeMatchType();
   }, [chatRoomId, initialMatchType]);
 
-  // ============================================================
-  // TRACK PEER USER
-  // ============================================================
-
+  // Track peer user ID in current room
   useEffect(() => {
     if (!chatRoomId || !userId) return;
-
-    const participantsRef = ref(
-      database,
-      `chatRooms/${chatRoomId}/participants`
-    );
-
-    const unsubscribe = onValue(
-      participantsRef,
-      (snapshot) => {
-        const data = snapshot.val();
-
-        if (data) {
-          const peer = Object.keys(data).find(
-            (id) => id !== userId
-          );
-
-          if (peer) {
-            setPeerUserId(peer);
-          }
-        }
+    const participantsRef = ref(database, `chatRooms/${chatRoomId}/participants`);
+    const unsubscribe = onValue(participantsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const peer = Object.keys(data).find((id) => id !== userId);
+        if (peer) setPeerUserId(peer);
       }
-    );
-
+    });
     return () => unsubscribe();
   }, [chatRoomId, userId]);
 
-  // ============================================================
-  // WEBRTC CALLING SYSTEM
-  // DO NOT TOUCH
-  // ============================================================
-
+  // WebRTC Calling System hook integration
   const {
     callState,
     callType,
@@ -132,139 +84,63 @@ const ChatRoom = ({ chatRoomId, userId, initialMatchType, onSkip }) => {
     hangUp,
     toggleMic,
     toggleCamera,
-  } = useWebRTCCall({
-    chatRoomId,
-    userId,
-    peerUserId,
-    roomMatchType,
-  });
-
-  // ============================================================
-  // FIREBASE CHAT SUBSCRIPTIONS
-  // ============================================================
+  } = useWebRTCCall({ chatRoomId, userId, peerUserId, roomMatchType });
 
   useEffect(() => {
     if (!chatRoomId) return;
 
-    // 1. Messages
-    const messagesRef = ref(
-      database,
-      `chatRooms/${chatRoomId}/messages`
-    );
+    // 1. Subscribe to messages
+    const messagesRef = ref(database, `chatRooms/${chatRoomId}/messages`);
+    const unsubscribeMessages = onValue(messagesRef, (snapshot) => {
+      const data = snapshot.val();
+      const loadedMessages = data ? Object.values(data) : [];
+      setMessages(loadedMessages);
+    });
 
-    const unsubscribeMessages = onValue(
-      messagesRef,
-      (snapshot) => {
-        const data = snapshot.val();
-        const loadedMessages = data
-          ? Object.values(data)
-          : [];
+    // 2. Subscribe to interests (preserved in state)
+    const interestsRef = ref(database, `chatRooms/${chatRoomId}/matchedInterests`);
+    const unsubscribeInterests = onValue(interestsRef, (snapshot) => {
+      const data = snapshot.val();
+      setInterests(data ? Object.values(data) : []);
+    });
 
-        setMessages(loadedMessages);
+    // 3. Subscribe to chat room status
+    const statusRef = ref(database, `chatRooms/${chatRoomId}/status`);
+    const unsubscribeStatus = onValue(statusRef, (snapshot) => {
+      const status = snapshot.val();
+      if (status) {
+        setChatStatus(status);
       }
-    );
+    });
 
-    // 2. Interests
-    const interestsRef = ref(
-      database,
-      `chatRooms/${chatRoomId}/matchedInterests`
-    );
-
-    const unsubscribeInterests = onValue(
-      interestsRef,
-      (snapshot) => {
-        const data = snapshot.val();
-
-        setInterests(
-          data
-            ? Object.values(data)
-            : []
-        );
-      }
-    );
-
-    // 3. Chat status
-    const statusRef = ref(
-      database,
-      `chatRooms/${chatRoomId}/status`
-    );
-
-    const unsubscribeStatus = onValue(
-      statusRef,
-      (snapshot) => {
-        const status = snapshot.val();
-
-        if (status) {
-          setChatStatus(status);
-        }
-      }
-    );
-
-    // 4. Disconnect cleanup
+    // 4. Setup onDisconnect server cleanup
     const disconnectRef = onDisconnect(statusRef);
-
-    disconnectRef
-      .set("disconnected")
-      .catch((err) =>
-        console.error(
-          "onDisconnect status error:",
-          err
-        )
-      );
+    disconnectRef.set("disconnected").catch((err) => console.error("onDisconnect status error:", err));
 
     return () => {
       unsubscribeMessages();
       unsubscribeInterests();
       unsubscribeStatus();
-
-      disconnectRef
-        .cancel()
-        .catch((err) =>
-          console.error(
-            "onDisconnect cancel error:",
-            err
-          )
-        );
+      disconnectRef.cancel().catch((err) => console.error("onDisconnect cancel error:", err));
     };
   }, [chatRoomId]);
 
-  // ============================================================
-  // MESSAGE SCROLL
-  // ============================================================
-
   useEffect(() => {
-    if (!messagesEndRef.current) return;
-
-    messagesEndRef.current.scrollIntoView({
-      behavior: "smooth",
-    });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   const scrollToBottom = () => {
-    if (!messagesEndRef.current) return;
-
-    messagesEndRef.current.scrollIntoView({
-      behavior: "smooth",
-    });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
-  // ============================================================
-  // SEND MESSAGE
-  // ============================================================
-
   const sendMessage = async () => {
-    if (
-      newMessage.trim() === "" ||
-      chatStatus === "disconnected"
-    ) {
-      return;
-    }
+    if (newMessage.trim() === "" || chatStatus === "disconnected") return;
 
-    const messagesRef = ref(
-      database,
-      `chatRooms/${chatRoomId}/messages`
-    );
-
+    const messagesRef = ref(database, `chatRooms/${chatRoomId}/messages`);
     const newMessageRef = push(messagesRef);
 
     await set(newMessageRef, {
@@ -273,575 +149,356 @@ const ChatRoom = ({ chatRoomId, userId, initialMatchType, onSkip }) => {
       timestamp: Date.now(),
     });
 
-    const chatRoomRef = ref(
-      database,
-      `chatRooms/${chatRoomId}`
-    );
-
+    const chatRoomRef = ref(database, `chatRooms/${chatRoomId}`);
     await update(chatRoomRef, {
       lastActive: serverTimestamp(),
     });
 
     setNewMessage("");
-
-    // Reset textarea height after sending
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "44px";
-    }
-
     scrollToBottom();
   };
 
-  // ============================================================
-  // SCROLL DETECTION
-  // ============================================================
-
   const handleScroll = () => {
     const container = chatContainerRef.current;
-
-    if (!container) return;
-
-    const atBottom =
-      container.scrollHeight -
-      container.scrollTop <=
-      container.clientHeight + 30;
-
-    setShowScrollButton(!atBottom);
+    if (container) {
+      const atBottom =
+        container.scrollHeight - container.scrollTop <=
+        container.clientHeight + 20;
+      setShowScrollButton(!atBottom);
+    }
   };
 
   useEffect(() => {
-    const container =
-      chatContainerRef.current;
-
-    if (!container) return;
-
-    container.addEventListener(
-      "scroll",
-      handleScroll,
-      { passive: true }
-    );
-
-    return () =>
-      container.removeEventListener(
-        "scroll",
-        handleScroll
-      );
+    const container = chatContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+      return () => container.removeEventListener("scroll", handleScroll);
+    }
   }, []);
 
-  // ============================================================
-  // TEXTAREA AUTO RESIZE
-  // ============================================================
-
-  const handleTextareaChange = (event) => {
-    const textarea = event.target;
-
-    setNewMessage(textarea.value);
-
-    textarea.style.height = "auto";
-
-    textarea.style.height = `${Math.min(
-      textarea.scrollHeight,
-      120
-    )}px`;
-  };
-
-  // ============================================================
-  // SKIP / DISCONNECT
-  // ============================================================
-
+  // Handle Skip / Disconnect button click
   const handleSkip = () => {
     if (callState !== "idle") {
       hangUp();
     }
-
     if (chatRoomId) {
-      set(
-        ref(
-          database,
-          `chatRooms/${chatRoomId}/status`
-        ),
-        "disconnected"
-      ).catch((err) =>
-        console.error(
-          "Error setting status:",
-          err
-        )
-      );
-
-      remove(
-        ref(
-          database,
-          `matches/${userId}`
-        )
-      ).catch((err) =>
-        console.error(
-          "Error removing match:",
-          err
-        )
-      );
+      set(ref(database, `chatRooms/${chatRoomId}/status`), "disconnected")
+        .catch((err) => console.error("Error setting status:", err));
+      remove(ref(database, `matches/${userId}`))
+        .catch((err) => console.error("Error removing match:", err));
     }
-
     onSkip();
   };
 
-  // ============================================================
-  // CALL UI STATE
-  // ============================================================
-
+  // Determine if active call view should be rendered
   const isCallActive =
     (callState === "calling" ||
       callState === "connecting" ||
       callState === "connected" ||
       callState === "failed" ||
       callState === "permission_denied") &&
-    (callType === "audio" ||
-      callType === "video");
+    (callType === "audio" || callType === "video");
 
-  const isIncomingCall =
-    callState === "incoming";
-
-  const isConnectedCall =
-    callState === "connected";
-
-  const isCalling =
-    callState === "calling" ||
-    callState === "connecting";
-
-  const hasMessages = messages.length > 0;
-
-  // ============================================================
-  // RENDER
-  // ============================================================
+  const isVideoCallActive = isCallActive && callType === "video";
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-gray-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-
-      {/* ======================================================
-          TOP HEADER
-      ====================================================== */}
-
+    <div className="flex flex-col h-screen pt-[4.3rem] bg-gradient-to-b from-gray-100 via-gray-200 to-gray-300 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950/70 text-slate-900 dark:text-slate-100 overflow-hidden font-sans">
+      {/* 1. Global Application Header (Preserved) */}
       <Header />
 
-      {/* ======================================================
-          MAIN APPLICATION SHELL
-      ====================================================== */}
-
-      <div className="flex h-full flex-col pt-[4.3rem]">
-
-        {/* ====================================================
-            CHAT TOP BAR
-        ==================================================== */}
-
-        <div className="z-20 border-b border-gray-200 bg-white/95 px-3 py-2 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 sm:px-5">
-
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-
-            {/* MATCH INFO */}
-
-            <div className="min-w-0 flex-1">
-
-              <div className="flex items-center gap-2">
-
-                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 text-sm shadow-md">
-                  👤
-                </div>
-
-                <div className="min-w-0">
-
-                  <div className="flex items-center gap-2">
-
-                    <span className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">
-                      Stranger
-                    </span>
-
-                    {chatStatus === "active" && (
-                      <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-500">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Online
-                      </span>
-                    )}
-
-                  </div>
-
-                  <div className="mt-0.5 flex max-w-full items-center gap-1.5 overflow-hidden">
-
-                    <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                      Interests
-                    </span>
-
-                    <div className="flex min-w-0 gap-1 overflow-x-auto scrollbar-none">
-
-                      {interests.map(
-                        (interest, index) => (
-                          <span
-                            key={index}
-                            className="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300"
-                          >
-                            {interest}
-                          </span>
-                        )
-                      )}
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-
+      {/* 2. Chat-Specific Toolbar (Positioned directly below global Header) */}
+      <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-4 py-2.5 flex items-center justify-between shadow-xs shrink-0 z-20">
+        <div className="flex items-center space-x-2.5">
+          <div className="relative">
+            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold text-xs border border-slate-300 dark:border-slate-600">
+              <UserIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             </div>
-
-            {/* ==================================================
-                CALL BUTTONS
-            ================================================== */}
-
-            {chatStatus === "active" &&
-              callState === "idle" && (
-                <div className="flex shrink-0 items-center gap-1.5">
-
-                  <button
-                    onClick={() =>
-                      startCall("audio")
-                    }
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-lg text-white shadow-sm transition-all hover:bg-emerald-600 hover:shadow-md active:scale-90"
-                    title="Start audio call"
-                    aria-label="Start audio call"
-                  >
-                    📞
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      startCall("video")
-                    }
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-lg text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-90"
-                    title="Start video call"
-                    aria-label="Start video call"
-                  >
-                    📹
-                  </button>
-
-                </div>
-              )}
-
-            {/* CALL STATUS */}
-
-            {isCalling && (
-              <div className="flex shrink-0 items-center gap-2 rounded-full bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
-
-                <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-
-                {callType === "video"
-                  ? "Video calling..."
-                  : "Calling..."}
-
-              </div>
-            )}
-
-            {isConnectedCall && (
-              <div className="flex shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
-
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-
-                {callType === "video"
-                  ? "Video call"
-                  : "Audio call"}
-
-              </div>
-            )}
-
+            <span
+              className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-white dark:border-slate-800 ${
+                chatStatus === "active" ? "bg-emerald-500" : "bg-slate-400"
+              }`}
+            />
           </div>
-
+          <div className="flex flex-col">
+            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+              Stranger
+            </span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">
+              {chatStatus === "active" ? "Connected" : "Disconnected"}
+            </span>
+          </div>
         </div>
 
-        {/* ====================================================
-            SCROLLABLE CHAT CONTENT
-        ==================================================== */}
-
-        <main
-          ref={chatContainerRef}
-          className="flex-1 overflow-y-auto overscroll-contain bg-gray-100 px-2 py-4 dark:bg-slate-950 sm:px-4"
-        >
-
-          <div className="mx-auto flex w-full max-w-4xl flex-col">
-
-            {/* =================================================
-                CALL AREA
-            ================================================= */}
-
-            {isIncomingCall && (
-              <div className="mb-4">
-                <IncomingCallModal
-                  callType={callType}
-                  onAccept={acceptCall}
-                  onDecline={declineIncomingCall}
-                />
-              </div>
-            )}
-
-            {isCallActive && (
-              <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg dark:border-slate-800 dark:bg-slate-900">
-                <ActiveCallView
-                  callState={callState}
-                  callType={callType}
-                  localStream={localStream}
-                  remoteStream={remoteStream}
-                  isMicMuted={isMicMuted}
-                  isCameraOff={isCameraOff}
-                  errorMessage={errorMessage}
-                  onToggleMic={toggleMic}
-                  onToggleCamera={toggleCamera}
-                  onHangUp={hangUp}
-                />
-              </div>
-            )}
-
-            {/* =================================================
-                DISCONNECTED STATE
-            ================================================= */}
-
-            {chatStatus === "disconnected" && (
-              <div className="my-4 flex flex-col items-center justify-center rounded-2xl border border-red-200 bg-white px-5 py-8 text-center shadow-sm dark:border-red-900/40 dark:bg-slate-900">
-
-                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl dark:bg-red-950/50">
-                  👋
-                </div>
-
-                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-                  Stranger disconnected
-                </h3>
-
-                <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-                  This conversation has ended. Start a new chat whenever you're ready.
-                </p>
-
-                <button
-                  onClick={handleSkip}
-                  className="mt-5 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md active:scale-95"
-                >
-                  ✨ Find Someone New
-                </button>
-
-              </div>
-            )}
-
-            {/* =================================================
-                EMPTY CHAT STATE
-            ================================================= */}
-
-            {!hasMessages &&
-              chatStatus === "active" &&
-              !isCallActive &&
-              !isIncomingCall && (
-                <div className="flex flex-1 flex-col items-center justify-center px-5 py-20 text-center">
-
-                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 text-3xl shadow-lg">
-                    💬
-                  </div>
-
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                    You're matched!
-                  </h2>
-
-                  <p className="mt-1 max-w-xs text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-                    Say something interesting. You never know where the conversation might go.
-                  </p>
-
-                  <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-
-                    {interests.slice(0, 4).map(
-                      (interest, index) => (
-                        <span
-                          key={index}
-                          className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-500 shadow-sm dark:bg-slate-900 dark:text-slate-400"
-                        >
-                          #{interest}
-                        </span>
-                      )
-                    )}
-
-                  </div>
-
-                </div>
-              )}
-
-            {/* =================================================
-                MESSAGES
-            ================================================= */}
-
-            <div className="flex flex-col gap-1.5">
-
-              {messages.map(
-                (message, index) => {
-                  const isMine =
-                    message.senderId ===
-                    userId;
-
-                  const isEmoji =
-                    emojiRegex.test(
-                      message.text
-                    ) &&
-                    message.text.length < 3;
-
-                  return (
-                    <div
-                      key={index}
-                      className={`flex w-full ${isMine
-                          ? "justify-end"
-                          : "justify-start"
-                        }`}
-                    >
-
-                      <div
-                        className={`group relative max-w-[88%] sm:max-w-[75%] ${isEmoji
-                            ? "px-1 py-1"
-                            : "px-4 py-2.5"
-                          } ${isEmoji
-                            ? "bg-transparent shadow-none"
-                            : isMine
-                              ? "rounded-2xl rounded-br-md bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-sm"
-                              : "rounded-2xl rounded-bl-md border border-slate-200 bg-white text-slate-800 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-                          }`}
-                      >
-
-                        <p
-                          className={`break-words whitespace-pre-wrap leading-relaxed ${isEmoji
-                              ? "animate-zoom text-6xl"
-                              : "text-sm sm:text-[15px]"
-                            }`}
-                        >
-                          {message.text}
-                        </p>
-
-                      </div>
-
-                    </div>
-                  );
-                }
-              )}
-
-            </div>
-
-            <div
-              ref={messagesEndRef}
-              className="h-2"
-            />
-
+        {/* Right: Refined Heroicons Call Action Buttons */}
+        {chatStatus === "active" && callState === "idle" && (
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => startCall("audio")}
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all duration-150 active:scale-95 flex items-center gap-1.5 text-xs font-medium"
+              title="Start Audio Call"
+              aria-label="Start Audio Call"
+            >
+              <PhoneIcon className="w-4 h-4 text-emerald-500" />
+              <span className="hidden sm:inline font-semibold">Audio</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => startCall("video")}
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-all duration-150 active:scale-95 flex items-center gap-1.5 text-xs font-medium"
+              title="Start Video Call"
+              aria-label="Start Video Call"
+            >
+              <VideoCameraIcon className="w-4 h-4 text-blue-500" />
+              <span className="hidden sm:inline font-semibold">Video</span>
+            </button>
           </div>
+        )}
+      </div>
 
-        </main>
+      {/* 3. Incoming Call Modal Overlay */}
+      {callState === "incoming" && (
+        <IncomingCallModal
+          callType={callType}
+          onAccept={acceptCall}
+          onDecline={declineIncomingCall}
+        />
+      )}
 
-        {/* ====================================================
-            SCROLL TO BOTTOM
-        ==================================================== */}
-
-        {showScrollButton && (
-          <button
-            onClick={scrollToBottom}
-            className="fixed bottom-[6.5rem] right-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-lg text-slate-700 shadow-lg transition-all hover:-translate-y-0.5 hover:bg-slate-50 active:scale-90 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:right-8"
-            aria-label="Scroll to latest messages"
-            title="Scroll to latest messages"
-          >
-            ↓
-          </button>
+      {/* 4. Chat Workspace & Call Presentation Container (Responsive 65/35 layout for Video) */}
+      <div className={`flex-1 flex overflow-hidden relative ${isVideoCallActive ? "flex-col md:flex-row" : "flex-col"}`}>
+        {/* Active Call Presentation Area */}
+        {isCallActive && (
+          <div className={isVideoCallActive ? "w-full md:w-[65%] shrink-0 flex flex-col" : "w-full shrink-0"}>
+            <ActiveCallView
+              callState={callState}
+              callType={callType}
+              localStream={localStream}
+              remoteStream={remoteStream}
+              isMicMuted={isMicMuted}
+              isCameraOff={isCameraOff}
+              errorMessage={errorMessage}
+              onToggleMic={toggleMic}
+              onToggleCamera={toggleCamera}
+              onHangUp={hangUp}
+            />
+          </div>
         )}
 
-        {/* ====================================================
-            MESSAGE COMPOSER
-        ==================================================== */}
+        {/* Messages Container (Takes 35% on Desktop Video Call, or 100% on Text/Audio Calls) */}
+        <div
+          ref={chatContainerRef}
+          className="flex-1 flex flex-col overflow-y-auto p-3 sm:p-4 space-y-3 relative"
+        >
+          {chatStatus === "disconnected" && (
+  <div className="flex justify-center my-5 shrink-0">
+    <div
+      className="
+        relative
+        w-full
+        max-w-sm
+        px-5
+        py-4
+        rounded-2xl
 
-        <div className="z-20 border-t border-gray-200 bg-white/95 px-2 py-2 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95 sm:px-4">
+        bg-white/80
+        dark:bg-slate-800/70
 
-          <div className="mx-auto flex max-w-4xl items-end gap-2">
+        backdrop-blur-xl
 
-            {/* DISCONNECT / NEW CHAT */}
+        border
+        border-slate-200/80
+        dark:border-slate-700/80
 
-            <button
-              onClick={handleSkip}
-              className={`flex h-11 shrink-0 items-center justify-center rounded-full px-4 text-sm font-semibold text-white shadow-sm transition-all active:scale-95 ${chatStatus === "disconnected"
-                  ? "bg-blue-600 hover:bg-blue-700"
-                  : "bg-red-500 hover:bg-red-600"
-                }`}
-            >
+        shadow-sm
+        dark:shadow-black/10
 
-              <span className="hidden sm:inline">
-                {chatStatus === "disconnected"
-                  ? "✨ New Chat"
-                  : "Disconnect"}
-              </span>
+        text-center
 
-              <span className="sm:hidden">
-                {chatStatus === "disconnected"
-                  ? "✨"
-                  : "×"}
-              </span>
+        animate-fade-in
+      "
+    >
+      {/* Status indicator */}
+      <div className="flex justify-center mb-2.5">
+        <div
+          className="
+            w-9
+            h-9
+            rounded-full
 
-            </button>
+            bg-slate-100
+            dark:bg-slate-800/70
 
-            {/* MESSAGE INPUT */}
+            border
+            border-slate-200
+            dark:border-slate-700
 
-            <div className="relative flex min-h-11 flex-1 items-end rounded-2xl border border-slate-200 bg-slate-50 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-800">
-
-              <textarea
-                ref={textareaRef}
-                value={newMessage}
-                onChange={handleTextareaChange}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    !e.shiftKey
-                  ) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                rows={1}
-                placeholder={
-                  chatStatus ===
-                    "disconnected"
-                    ? "Stranger left..."
-                    : "Message..."
-                }
-                disabled={
-                  chatStatus ===
-                  "disconnected"
-                }
-                className="max-h-[120px] min-h-[44px] w-full resize-none overflow-y-auto bg-transparent px-4 py-3 pr-3 text-sm leading-5 text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white dark:placeholder:text-slate-500"
-              />
-
-            </div>
-
-            {/* SEND BUTTON */}
-
-            <button
-              onClick={sendMessage}
-              disabled={
-                chatStatus ===
-                "disconnected" ||
-                !newMessage.trim()
-              }
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none active:scale-90 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
-              aria-label="Send message"
-              title="Send message"
-            >
-              ➤
-            </button>
-
-          </div>
-
-          {/* KEYBOARD HINT */}
-
-          {chatStatus === "active" && (
-            <div className="mx-auto hidden max-w-4xl justify-end px-16 pt-1 sm:flex">
-              <span className="text-[10px] text-slate-400 dark:text-slate-600">
-                Enter to send · Shift + Enter for new line
-              </span>
-            </div>
-          )}
-
+            flex
+            items-center
+            justify-center
+          "
+        >
+          <span
+            className="
+              w-2.5
+              h-2.5
+              rounded-full
+              bg-slate-400
+              dark:bg-slate-600
+            "
+          />
         </div>
+      </div>
 
+      {/* Title */}
+      <p
+        className="
+          text-sm
+          font-semibold
+          text-slate-800
+          dark:text-slate-200
+        "
+      >
+        Conversation ended
+      </p>
+
+      {/* Description */}
+      <p
+        className="
+          mt-1
+          text-xs
+          leading-relaxed
+          text-slate-500
+          dark:text-slate-400
+        "
+      >
+        The stranger has left this chat.
+      </p>
+
+      {/* Divider */}
+      <div
+        className="
+          w-8
+          h-px
+          mx-auto
+          my-3
+          bg-slate-200
+          dark:bg-slate-700
+        "
+      />
+
+      {/* Hint */}
+      <p
+        className="
+          text-[11px]
+          font-medium
+          tracking-wide
+          text-blue-500
+          dark:text-blue-400
+        "
+      >
+        Start a new chat when you're ready
+      </p>
+    </div>
+  </div>
+)}
+
+          {messages.map((message, index) => {
+            const isMe = message.senderId === userId;
+            const isEmoji = emojiRegex.test(message.text) && message.text.length < 3;
+
+            return (
+              <div
+                key={index}
+                className={`flex ${isMe ? "justify-end" : "justify-start"} animate-fade-in`}
+              >
+                <div
+                  className={`max-w-[85%] sm:max-w-[70%] px-4 py-2.5 rounded-2xl shadow-xs text-sm sm:text-base leading-relaxed break-words ${
+                    isMe
+                      ? "bg-gradient-to-br from-indigo-400 to-blue-700 dark:from-blue-950 dark:to-indigo-950 text-slate-200 dark:text-slate-300 rounded-br-none"
+                : "bg-gradient-to-tr from-slate-200 to-gray-300 dark:from-indigo-950 dark:to-slate-950/30 text-black dark:text-slate-300 rounded-bl-none"
+                  } ${isEmoji ? "bg-transparent! border-none! shadow-none! text-5xl! p-0!" : ""}`}
+                >
+                  <p className={isEmoji ? "text-5xl" : ""}>{message.text}</p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Floating Scroll-to-Bottom Button */}
+      {showScrollButton && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 pointer-events-none z-30">
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="bg-slate-800/90 hover:bg-slate-800 text-white p-2.5 rounded-full shadow-lg border border-slate-700 backdrop-blur-md transition-all duration-200 active:scale-95 pointer-events-auto flex items-center justify-center"
+            title="Scroll to bottom"
+          >
+            <ChevronDownIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* 5. Cohesive Message Composer Bar */}
+      <div className="bg-gray-300 dark:bg-slate-900/90 border-t border-gray-200/80 dark:border-slate-800/80 p-3 sm:p-4 flex items-center gap-2.5 shrink-0 z-20 transition-colors duration-200">
+        {/* Skip / New Chat Action Button */}
+        <button
+          type="button"
+          onClick={handleSkip}
+          className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold shrink-0 transition-all duration-150 flex items-center gap-1.5 active:scale-95 shadow-xs ${
+            chatStatus === "disconnected"
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "bg-slate-200/50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
+          }`}
+          title={chatStatus === "disconnected" ? "Start New Chat" : "Skip Stranger"}
+        >
+          {chatStatus === "disconnected" ? (
+            <>
+              <ArrowPathIcon className="w-4 h-4" />
+              <span className="hidden">New Chat</span>
+            </>
+          ) : (
+            <>
+              <ArrowRightIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              <span>Skip</span>
+            </>
+          )}
+        </button>
+
+        {/* Integrated Input & Send Container */}
+        <div className="flex-1 flex items-center bg-slate-100 dark:bg-slate-700/60 border border-slate-200/90 dark:border-slate-600/90 rounded-2xl px-3 py-1 focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:border-blue-500 transition-all">
+          <textarea
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            rows={1}
+            placeholder={
+              chatStatus === "disconnected"
+                ? "Stranger left - click New Chat"
+                : "Type a message..."
+            }
+            disabled={chatStatus === "disconnected"}
+            className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 resize-none outline-none min-h-[38px] max-h-[120px] py-2 overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          />
+
+          <button
+            type="button"
+            onClick={sendMessage}
+            disabled={chatStatus === "disconnected" || !newMessage.trim()}
+            className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 text-white shrink-0 transition-all duration-150 active:scale-95 disabled:active:scale-100 flex items-center justify-center"
+            title="Send message"
+          >
+            <PaperAirplaneIcon className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
