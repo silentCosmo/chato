@@ -97,7 +97,7 @@ const TermsOfService = () => {
                         <ul className="mt-3 list-disc space-y-2 pl-5">
                             <li>Harass, threaten, intimidate, or target another person.</li>
                             <li>Share sexual or exploitative content involving minors.</li>
-                            <li>Attempt to obtain another person's private information.</li>
+                            <li>Attempt to obtain another person&apos;s private information.</li>
                             <li>Impersonate another person or organization.</li>
                             <li>Send spam, scams, malicious links, or deceptive content.</li>
                             <li>Promote or coordinate illegal activities.</li>
@@ -161,7 +161,7 @@ const TermsOfService = () => {
                         <p className="mt-3">
                             You must have the necessary rights to share content that you
                             provide through the service and must not use Helbeku to distribute
-                            content that violates another person's rights or applicable law.
+                            content that violates another person&apos;s rights or applicable law.
                         </p>
                     </section>
 
